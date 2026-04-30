@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"name": "e-soulslike",
+			"path": "."
+		},
+		{
+			"name": "assets",
+			"path": "../zelda_go/assets"
+		}
+	],
+	"settings": {}
+}

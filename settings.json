@@ -1,0 +1,10 @@
+{
+  "master_volume": 0.6000000000000001,
+  "music_volume": 0.7,
+  "sfx_volume": 0.9,
+  "audio_enabled": true,
+  "show_fps": false,
+  "show_damage_numbers": true,
+  "camera_smoothing": 0.1,
+  "mouse_sensitivity": 1
+}
