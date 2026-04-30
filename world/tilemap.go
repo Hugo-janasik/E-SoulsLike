@@ -129,49 +129,91 @@ func (tm *TileMap) Draw(screen *ebiten.Image, camera *Camera) {
 	ts := float32(TileSize) * float32(camera.Zoom)
 
 	if tm.IsDungeon {
-		pal, ok := dungeonPalettes[tm.Theme]
-		if !ok {
-			pal = dungeonPalettes[ThemeDefault]
-		}
+		if tm.Theme == ThemeHub {
+			// ── Rendu Hub ─────────────────────────────────────────────────────
+			// Passe 1 : sol (herbe, plaza, eau, pierre intérieure) + murs internes
+			for y := startY; y <= endY; y++ {
+				for x := startX; x <= endX; x++ {
+					tile := &tm.Tiles[y][x]
+					worldX := float64(x * TileSize)
+					worldY := float64(y * TileSize)
+					screenX, screenY := camera.WorldToScreen(worldX, worldY)
+					sx, sy := float32(screenX), float32(screenY)
 
-		// Passe 1 — sol, couloirs et murs internes (fond)
-		for y := startY; y <= endY; y++ {
-			for x := startX; x <= endX; x++ {
-				tile := &tm.Tiles[y][x]
-				worldX := float64(x * TileSize)
-				worldY := float64(y * TileSize)
-				screenX, screenY := camera.WorldToScreen(worldX, worldY)
-				sx, sy := float32(screenX), float32(screenY)
-
-				if tile.Type == TileWall {
-					// Mur interne seulement — les faces sont dessinées en passe 2
-					southIsFloor := y+1 < tm.Height && tm.Tiles[y+1][x].Type != TileWall
-					if !southIsFloor {
-						drawWallInner(screen, pal, sx, sy, ts, x, y)
+					if tile.Type == TileWall {
+						southIsFloor := y+1 < tm.Height && tm.Tiles[y+1][x].Type != TileWall
+						if !southIsFloor {
+							drawHubWallInner(screen, sx, sy, ts, x, y)
+						}
+					} else {
+						northWall := y > 0 && tm.Tiles[y-1][x].Type == TileWall
+						drawHubTile(screen, tile, nil, northWall, sx, sy, ts, x, y, tm.Tick)
 					}
-				} else {
-					northWall := y > 0 && tm.Tiles[y-1][x].Type == TileWall
-					drawDungeonFloor(screen, pal, sx, sy, ts, x, y, northWall)
 				}
 			}
-		}
+			// Passe 2 : faces de ruines (par-dessus le sol)
+			for y := startY; y <= endY; y++ {
+				for x := startX; x <= endX; x++ {
+					tile := &tm.Tiles[y][x]
+					if tile.Type != TileWall {
+						continue
+					}
+					southIsFloor := y+1 < tm.Height && tm.Tiles[y+1][x].Type != TileWall
+					if !southIsFloor {
+						continue
+					}
+					worldX := float64(x * TileSize)
+					worldY := float64(y * TileSize)
+					screenX, screenY := camera.WorldToScreen(worldX, worldY)
+					sx, sy := float32(screenX), float32(screenY)
+					drawHubWallFace(screen, sx, sy, ts, x, y)
+				}
+			}
+		} else {
+			// ── Rendu Donjon ──────────────────────────────────────────────────
+			pal, ok := dungeonPalettes[tm.Theme]
+			if !ok {
+				pal = dungeonPalettes[ThemeDefault]
+			}
 
-		// Passe 2 — faces des murs avec torches, dessinées par-dessus le sol
-		for y := startY; y <= endY; y++ {
-			for x := startX; x <= endX; x++ {
-				tile := &tm.Tiles[y][x]
-				if tile.Type != TileWall {
-					continue
+			// Passe 1 — sol, couloirs et murs internes (fond)
+			for y := startY; y <= endY; y++ {
+				for x := startX; x <= endX; x++ {
+					tile := &tm.Tiles[y][x]
+					worldX := float64(x * TileSize)
+					worldY := float64(y * TileSize)
+					screenX, screenY := camera.WorldToScreen(worldX, worldY)
+					sx, sy := float32(screenX), float32(screenY)
+
+					if tile.Type == TileWall {
+						southIsFloor := y+1 < tm.Height && tm.Tiles[y+1][x].Type != TileWall
+						if !southIsFloor {
+							drawWallInner(screen, pal, sx, sy, ts, x, y)
+						}
+					} else {
+						northWall := y > 0 && tm.Tiles[y-1][x].Type == TileWall
+						drawDungeonFloor(screen, pal, sx, sy, ts, x, y, northWall)
+					}
 				}
-				southIsFloor := y+1 < tm.Height && tm.Tiles[y+1][x].Type != TileWall
-				if !southIsFloor {
-					continue
+			}
+
+			// Passe 2 — faces des murs avec torches, dessinées par-dessus le sol
+			for y := startY; y <= endY; y++ {
+				for x := startX; x <= endX; x++ {
+					tile := &tm.Tiles[y][x]
+					if tile.Type != TileWall {
+						continue
+					}
+					southIsFloor := y+1 < tm.Height && tm.Tiles[y+1][x].Type != TileWall
+					if !southIsFloor {
+						continue
+					}
+					worldX := float64(x * TileSize)
+					worldY := float64(y * TileSize)
+					screenX, screenY := camera.WorldToScreen(worldX, worldY)
+					sx, sy := float32(screenX), float32(screenY)
+					drawWallFace(screen, pal, sx, sy, ts, x, y, tm.Tick)
 				}
-				worldX := float64(x * TileSize)
-				worldY := float64(y * TileSize)
-				screenX, screenY := camera.WorldToScreen(worldX, worldY)
-				sx, sy := float32(screenX), float32(screenY)
-				drawWallFace(screen, pal, sx, sy, ts, x, y, tm.Tick)
 			}
 		}
 	} else {

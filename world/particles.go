@@ -116,6 +116,39 @@ var particleConfigs = map[ZoneTheme]particleConfig{
 				wobbleAmp: 0.10, weight: 10},
 		},
 	},
+	ThemeHub: {
+		maxCount: 70,
+		types: []particleType{
+			// Lucioles jaune-vert (dérivent lentement dans toutes directions)
+			{r: 180, g: 230, b: 80, maxAlpha: 190,
+				sizeMin: 1.0, sizeMax: 2.2,
+				vxMin: -0.20, vxMax: 0.20,
+				vyMin: -0.18, vyMax: 0.18,
+				decayMin: 0.004, decayMax: 0.008,
+				wobbleAmp: 0.35, weight: 6},
+			// Braises oranges du feu central (montent vite)
+			{r: 235, g: 100, b: 25, maxAlpha: 200,
+				sizeMin: 0.8, sizeMax: 1.8,
+				vxMin: -0.15, vxMax: 0.15,
+				vyMin: -1.00, vyMax: -0.45,
+				decayMin: 0.012, decayMax: 0.022,
+				wobbleAmp: 0.20, weight: 4},
+			// Poussière de pierre (très fine, quasi immobile)
+			{r: 155, g: 145, b: 125, maxAlpha: 60,
+				sizeMin: 0.5, sizeMax: 1.2,
+				vxMin: -0.06, vxMax: 0.06,
+				vyMin: -0.04, vyMax: 0.04,
+				decayMin: 0.003, decayMax: 0.006,
+				wobbleAmp: 0.05, weight: 3},
+			// Étincelles dorées (très courte vie, brillantes)
+			{r: 255, g: 215, b: 60, maxAlpha: 220,
+				sizeMin: 0.6, sizeMax: 1.2,
+				vxMin: -0.30, vxMax: 0.30,
+				vyMin: -1.30, vyMax: -0.60,
+				decayMin: 0.020, decayMax: 0.035,
+				wobbleAmp: 0.28, weight: 2},
+		},
+	},
 }
 
 // AmbientParticles gère le pool de particules d'ambiance pour un donjon.

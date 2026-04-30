@@ -259,6 +259,19 @@ func (g *Game) Update() error {
 			}
 		} else {
 			g.zoneManager.Update(g.player.X, g.player.Y)
+			// Tick de la tilemap du hub (eau animée)
+			if hz := g.zoneManager.GetCurrentZone(); hz != nil {
+				hz.TileMap.Tick++
+			}
+			// Particules hub (lucioles + braises)
+			if g.particles == nil {
+				if hz := g.zoneManager.GetCurrentZone(); hz != nil && hz.Theme == world.ThemeHub {
+					g.particles = world.NewAmbientParticles(world.ThemeHub)
+				}
+			}
+			if g.particles != nil {
+				g.particles.Update(g.camera)
+			}
 		}
 
 		// Récupérer la tilemap actuelle pour les collisions
@@ -321,7 +334,7 @@ func (g *Game) respawnPlayer() {
 	if g.dungeonManager.IsInDungeon() {
 		g.dungeonManager.ExitDungeon()
 		g.vignette = nil
-		g.particles = nil
+		g.particles = nil // seront recréés en ThemeHub au prochain Update
 	}
 
 	// Changer de zone vers le dernier feu de camp
@@ -444,7 +457,7 @@ func (g *Game) changeZone(zoneID, spawnPoint string) {
 
 			// Créer la vignette torche et les particules adaptées au thème du donjon
 			g.vignette = world.NewVignette(g.width, g.height, floor.Zone.Theme)
-			g.particles = world.NewAmbientParticles(floor.Zone.Theme)
+			g.particles = world.NewAmbientParticles(floor.Zone.Theme) // remplace les particules hub
 
 			// Message de transition
 			g.saveMessage = fmt.Sprintf(">>> %s - Étage 1/%d <<<", dungeon.Name, dungeon.TotalFloors)
@@ -564,12 +577,14 @@ func (g *Game) Draw(screen *ebiten.Image) {
 				portal.Draw(screen, g.camera)
 			}
 
-			// Dessiner les feux de camp
+			// Dessiner les feux de camp et PNJs
 			for _, campfire := range currentZone.Campfires {
 				if cf, ok := campfire.(*entities.Campfire); ok {
 					cf.Draw(screen, g.camera)
 				} else if fg, ok := campfire.(*entities.FireGuardian); ok {
 					fg.Draw(screen, g.camera)
+				} else if npc, ok := campfire.(*entities.HubNPC); ok {
+					npc.Draw(screen, g.camera)
 				}
 			}
 
@@ -737,7 +752,13 @@ func (g *Game) quickSave() {
 func (g *Game) populateZones() {
 	// Place du Feu - Hub central
 	firelink := g.zoneManager.GetZone("firelink")
-	firelink.AddCampfire(entities.NewFireGuardian(1600, 1740)) // Décalé vers le bas du centre (1600, 1600)
+	firelink.AddCampfire(entities.NewFireGuardian(1600, 1740))
+
+	// PNJs décoratifs du hub
+	for _, pos := range world.HubNPCPositions() {
+		npc := entities.NewHubNPC(pos.X, pos.Y, pos.Name, "assets/npcs/villager/idle.png")
+		firelink.AddCampfire(npc)
+	}
 }
 
 // isFarEnoughFromSpawn vérifie si une position est assez loin du spawn point

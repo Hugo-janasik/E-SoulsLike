@@ -34,6 +34,7 @@ const (
 	ThemeCastle            // Château
 	ThemeCatacombs         // Catacombes
 	ThemeRuins             // Ruines
+	ThemeHub               // Lobby principal (Place du Feu)
 )
 
 // NewZone crée une nouvelle zone
@@ -82,6 +83,11 @@ func (z *Zone) AddPortal(portal *Portal) {
 
 // NewThemedTileMap crée une tilemap avec un thème spécifique
 func NewThemedTileMap(width, height int, theme ZoneTheme) *TileMap {
+	// Le hub utilise son propre générateur de tilemap
+	if theme == ThemeHub {
+		return GenerateHubTilemap(width, height)
+	}
+
 	tm := NewTileMap(width, height)
 
 	// Pour le thème par défaut (zone hub), l'eau est traversable

@@ -25,9 +25,9 @@ func (zm *ZoneManager) createEmptyZones() {
 		"firelink",
 		"Place du Feu",
 		"Un refuge sûr au cœur des ténèbres",
-		100, // Augmenté de 60 à 100
-		100, // Augmenté de 60 à 100
-		ThemeDefault,
+		100,
+		100,
+		ThemeHub,
 	)
 
 	// Points de spawn (centre de la nouvelle map 100x100)
