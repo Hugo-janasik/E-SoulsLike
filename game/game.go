@@ -63,6 +63,10 @@ type Game struct {
 	deathScreen       *ui.DeathScreen
 	respawnZoneID     string // zone du dernier feu de camp visité
 	respawnSpawnPoint string // spawn point associé
+
+	// Effet torche dans les donjons
+	vignette  *world.Vignette
+	particles *world.AmbientParticles
 }
 
 // NewGame crée une nouvelle instance du jeu
@@ -242,6 +246,17 @@ func (g *Game) Update() error {
 		// Mettre à jour le zone manager ou dungeon manager selon où on est
 		if g.dungeonManager.IsInDungeon() {
 			g.dungeonManager.Update(g.player.X, g.player.Y)
+			if g.vignette != nil {
+				g.vignette.Update()
+			}
+			// Incrémenter le tick de la tilemap (animations de torches)
+			if currentZone := g.dungeonManager.GetCurrentZone(); currentZone != nil {
+				currentZone.TileMap.Tick++
+			}
+			// Mettre à jour les particules d'ambiance
+			if g.particles != nil {
+				g.particles.Update(g.camera)
+			}
 		} else {
 			g.zoneManager.Update(g.player.X, g.player.Y)
 		}
@@ -305,6 +320,8 @@ func (g *Game) respawnPlayer() {
 	// Sortir du donjon si nécessaire
 	if g.dungeonManager.IsInDungeon() {
 		g.dungeonManager.ExitDungeon()
+		g.vignette = nil
+		g.particles = nil
 	}
 
 	// Changer de zone vers le dernier feu de camp
@@ -425,6 +442,10 @@ func (g *Game) changeZone(zoneID, spawnPoint string) {
 			}
 			g.combatSystem = combat.NewCombatSystem(g.player, enemies, g.gameStats)
 
+			// Créer la vignette torche et les particules adaptées au thème du donjon
+			g.vignette = world.NewVignette(g.width, g.height, floor.Zone.Theme)
+			g.particles = world.NewAmbientParticles(floor.Zone.Theme)
+
 			// Message de transition
 			g.saveMessage = fmt.Sprintf(">>> %s - Étage 1/%d <<<", dungeon.Name, dungeon.TotalFloors)
 			g.saveMessageTimer = 120 // 2 secondes
@@ -473,6 +494,8 @@ func (g *Game) changeZone(zoneID, spawnPoint string) {
 		// Si on arrive ici et que la destination est "firelink", sortir du donjon
 		if zoneID == "firelink" {
 			g.dungeonManager.ExitDungeon()
+			g.vignette = nil
+			g.particles = nil
 		}
 	}
 
@@ -517,8 +540,12 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	// Si on est en jeu
 	if g.currentState == GameStatePlaying {
-		// Couleur de fond (gris foncé)
-		screen.Fill(color.RGBA{40, 40, 45, 255})
+		// Fond noir dans les donjons, gris foncé ailleurs
+		if g.dungeonManager.IsInDungeon() {
+			screen.Fill(color.RGBA{0, 0, 0, 255})
+		} else {
+			screen.Fill(color.RGBA{40, 40, 45, 255})
+		}
 
 		// Récupérer la zone actuelle (donjon ou zone normale)
 		var currentZone *world.Zone
@@ -556,6 +583,17 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 		// Dessiner le joueur
 		g.player.Draw(screen, g.camera)
+
+		// Particules d'ambiance (par-dessus entités, sous la vignette)
+		if g.particles != nil {
+			g.particles.Draw(screen, g.camera)
+		}
+
+		// Effet torche/vignette (par-dessus le monde, sous le HUD)
+		if g.vignette != nil {
+			playerScreenX, playerScreenY := g.camera.WorldToScreen(g.player.X, g.player.Y)
+			g.vignette.Draw(screen, playerScreenX, playerScreenY)
+		}
 
 		// Dessiner le HUD (santé, stamina, âmes)
 		g.hud.Draw(screen, g.player)

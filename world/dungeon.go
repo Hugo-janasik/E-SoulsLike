@@ -272,8 +272,12 @@ func hashString(s string) int {
 	return hash
 }
 
-// applyThemeToTilemap applique un thème visuel à une tilemap
+// applyThemeToTilemap applique un thème visuel à une tilemap de donjon.
+// Active le rendu procédural pierre (IsDungeon=true) et stocke le thème.
 func applyThemeToTilemap(tm *TileMap, theme ZoneTheme) *TileMap {
+	tm.IsDungeon = true
+	tm.Theme = theme
+
 	switch theme {
 	case ThemeForest:
 		// Forêt plus sombre et verdoyante

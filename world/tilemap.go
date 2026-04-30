@@ -30,10 +30,13 @@ type Tile struct {
 
 // TileMap représente la carte du monde
 type TileMap struct {
-	Width        int
-	Height       int
-	Tiles        [][]Tile
-	WalkableWater bool // Si true, l'eau est traversable (pour la zone hub)
+	Width         int
+	Height        int
+	Tiles         [][]Tile
+	WalkableWater bool      // Si true, l'eau est traversable (pour la zone hub)
+	IsDungeon     bool      // Utiliser le rendu procédural pierre/ombre
+	Theme         ZoneTheme // Thème visuel actif (utilisé par IsDungeon)
+	Tick          int       // Incrémenté chaque frame, pilote les animations
 }
 
 // NewTileMap crée une nouvelle carte
@@ -123,38 +126,66 @@ func (tm *TileMap) Draw(screen *ebiten.Image, camera *Camera) {
 		endY = tm.Height - 1
 	}
 
-	// Dessiner uniquement les tuiles visibles
-	for y := startY; y <= endY; y++ {
-		for x := startX; x <= endX; x++ {
-			tile := tm.Tiles[y][x]
+	ts := float32(TileSize) * float32(camera.Zoom)
 
-			worldX := float64(x * TileSize)
-			worldY := float64(y * TileSize)
+	if tm.IsDungeon {
+		pal, ok := dungeonPalettes[tm.Theme]
+		if !ok {
+			pal = dungeonPalettes[ThemeDefault]
+		}
 
-			screenX, screenY := camera.WorldToScreen(worldX, worldY)
+		// Passe 1 — sol, couloirs et murs internes (fond)
+		for y := startY; y <= endY; y++ {
+			for x := startX; x <= endX; x++ {
+				tile := &tm.Tiles[y][x]
+				worldX := float64(x * TileSize)
+				worldY := float64(y * TileSize)
+				screenX, screenY := camera.WorldToScreen(worldX, worldY)
+				sx, sy := float32(screenX), float32(screenY)
 
-			// Dessiner la tuile
-			vector.DrawFilledRect(
-				screen,
-				float32(screenX),
-				float32(screenY),
-				TileSize*float32(camera.Zoom),
-				TileSize*float32(camera.Zoom),
-				tile.Color,
-				false,
-			)
+				if tile.Type == TileWall {
+					// Mur interne seulement — les faces sont dessinées en passe 2
+					southIsFloor := y+1 < tm.Height && tm.Tiles[y+1][x].Type != TileWall
+					if !southIsFloor {
+						drawWallInner(screen, pal, sx, sy, ts, x, y)
+					}
+				} else {
+					northWall := y > 0 && tm.Tiles[y-1][x].Type == TileWall
+					drawDungeonFloor(screen, pal, sx, sy, ts, x, y, northWall)
+				}
+			}
+		}
 
-			// Dessiner une grille légère
-			vector.StrokeRect(
-				screen,
-				float32(screenX),
-				float32(screenY),
-				TileSize*float32(camera.Zoom),
-				TileSize*float32(camera.Zoom),
-				1,
-				color.RGBA{0, 0, 0, 20},
-				false,
-			)
+		// Passe 2 — faces des murs avec torches, dessinées par-dessus le sol
+		for y := startY; y <= endY; y++ {
+			for x := startX; x <= endX; x++ {
+				tile := &tm.Tiles[y][x]
+				if tile.Type != TileWall {
+					continue
+				}
+				southIsFloor := y+1 < tm.Height && tm.Tiles[y+1][x].Type != TileWall
+				if !southIsFloor {
+					continue
+				}
+				worldX := float64(x * TileSize)
+				worldY := float64(y * TileSize)
+				screenX, screenY := camera.WorldToScreen(worldX, worldY)
+				sx, sy := float32(screenX), float32(screenY)
+				drawWallFace(screen, pal, sx, sy, ts, x, y, tm.Tick)
+			}
+		}
+	} else {
+		// Rendu classique coloré (zones hors donjon)
+		for y := startY; y <= endY; y++ {
+			for x := startX; x <= endX; x++ {
+				tile := &tm.Tiles[y][x]
+				worldX := float64(x * TileSize)
+				worldY := float64(y * TileSize)
+				screenX, screenY := camera.WorldToScreen(worldX, worldY)
+				sx, sy := float32(screenX), float32(screenY)
+				vector.DrawFilledRect(screen, sx, sy, ts, ts, tile.Color, false)
+				vector.StrokeRect(screen, sx, sy, ts, ts, 1, color.RGBA{0, 0, 0, 20}, false)
+			}
 		}
 	}
 }
