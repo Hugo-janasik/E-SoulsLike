@@ -1,0 +1,128 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - "v*" # Déclenché par : git tag v1.0.0 && git push --tags
+
+permissions:
+  contents: write
+
+jobs:
+  # ─── Linux (amd64) ────────────────────────────────────────────────────────
+  build-linux:
+    if: github.event.base_ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+
+      - name: Install Linux deps (OpenGL / X11 / ALSA)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgl1-mesa-dev \
+            xorg-dev \
+            libasound2-dev
+
+      - name: Build game (Linux)
+        env:
+          GOOS: linux
+          GOARCH: amd64
+          CGO_ENABLED: 1
+        run: go build -ldflags="-s -w" -o e-soulslike_linux_amd64 .
+
+      - name: Package (binary + assets)
+        run: |
+          mkdir -p dist/e-soulslike_linux_amd64
+          cp e-soulslike_linux_amd64 dist/e-soulslike_linux_amd64/e-soulslike
+          cp -r assets dist/e-soulslike_linux_amd64/
+          cd dist && zip -r e-soulslike_linux_amd64.zip e-soulslike_linux_amd64/
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/e-soulslike_linux_amd64.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ─── Windows (amd64) ──────────────────────────────────────────────────────
+  build-windows:
+    if: github.event.base_ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+
+      - name: Install Windows cross-compiler (mingw-w64)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-mingw-w64-x86-64
+
+      - name: Build game (Windows)
+        env:
+          GOOS: windows
+          GOARCH: amd64
+          CGO_ENABLED: 1
+          CC: x86_64-w64-mingw32-gcc
+        # -H windowsgui évite la fenêtre console noire au lancement
+        run: go build -ldflags="-s -w -H windowsgui" -o e-soulslike_windows_amd64.exe .
+
+      - name: Package (binary + assets)
+        run: |
+          mkdir -p dist/e-soulslike_windows_amd64
+          cp e-soulslike_windows_amd64.exe dist/e-soulslike_windows_amd64/e-soulslike.exe
+          cp -r assets dist/e-soulslike_windows_amd64/
+          cd dist && zip -r e-soulslike_windows_amd64.zip e-soulslike_windows_amd64/
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/e-soulslike_windows_amd64.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ─── macOS (amd64 + arm64) ────────────────────────────────────────────────
+  build-macos:
+    if: github.event.base_ref == 'refs/heads/main'
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        include:
+          - goarch: amd64
+            asset_name: e-soulslike_darwin_amd64
+          - goarch: arm64
+            asset_name: e-soulslike_darwin_arm64
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+
+      - name: Build game (macOS ${{ matrix.goarch }})
+        env:
+          GOOS: darwin
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 1
+        run: go build -ldflags="-s -w" -o ${{ matrix.asset_name }} .
+
+      - name: Package (binary + assets)
+        run: |
+          mkdir -p dist/${{ matrix.asset_name }}
+          cp ${{ matrix.asset_name }} dist/${{ matrix.asset_name }}/e-soulslike
+          cp -r assets dist/${{ matrix.asset_name }}/
+          cd dist && zip -r ${{ matrix.asset_name }}.zip ${{ matrix.asset_name }}/
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/${{ matrix.asset_name }}.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
